@@ -23,11 +23,20 @@ RSpec.describe CtxCli::Collection do
 
   it "fails preflight before a report or batch can start" do
     adapter = double("adapter", inventory: [ [ { "host" => "192.0.2.10" } ], 1 ])
-    allow(adapter).to receive(:prepare).and_raise(ArgumentError, "missing username")
+    allow(adapter).to receive(:prepare).and_raise(ArgumentError, "missing username: PRIVATE-INPUT")
     output, errors = StringIO.new, StringIO.new
     entry = entrypoint(adapter: adapter, flags: {}, out: output, error: errors)
     expect(entry.run([])).to eq(2)
     expect(output.string).to eq("")
-    expect(errors.string).to include("missing username")
+    expect(errors.string).to include("ArgumentError")
+    expect(errors.string).not_to include("PRIVATE-INPUT")
+  end
+  it "preserves explicitly public usage guidance" do
+    adapter = double("adapter", inventory: [ [ { "host" => "192.0.2.10" } ], 1 ])
+    allow(adapter).to receive(:prepare).and_raise(CtxCli::Collection::Error, "set NC_DEVICE_USERNAME")
+    output, errors = StringIO.new, StringIO.new
+    entry = entrypoint(adapter: adapter, flags: {}, out: output, error: errors)
+    expect(entry.run([])).to eq(2)
+    expect(errors.string).to include("set NC_DEVICE_USERNAME")
   end
 end

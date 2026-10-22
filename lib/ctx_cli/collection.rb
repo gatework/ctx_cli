@@ -2,10 +2,14 @@
 
 require "optparse"
 require_relative "output"
+require_relative "configuration"
 
 module CtxCli
   # 终端采集入口的固定顺序；领域适配器拥有清单、预检、调度及采集策略。
   class Collection
+    # 宿主明确构造的公开操作提示，不得包装凭据或外部异常正文。
+    class Error < ArgumentError; end
+
     def initialize(adapter:, options:, progress:, batch:, label:, report_error:, failure_code:,
                    out: $stdout, error: $stderr, input: $stdin)
       @adapter, @options_factory, @progress_factory, @batch_class = adapter, options, progress, batch
@@ -58,8 +62,11 @@ module CtxCli
     rescue SystemCallError, IOError => error
       diagnostic "#{@label} 参数或报告错误：#{report_diagnostic(error)}"
       2
-    rescue OptionParser::ParseError, ArgumentError, LoadError => error
+    rescue Error, Configuration::Error => error
       diagnostic "#{@label} 参数、依赖或报告错误：#{error.message}；使用 --help 查看参数"
+      2
+    rescue OptionParser::ParseError, ArgumentError, LoadError => error
+      diagnostic "#{@label} 参数、依赖或报告错误：#{error.class.name}；使用 --help 查看参数"
       2
     rescue StandardError => error
       diagnostic "#{@label} 清单或执行失败：#{@failure_code.call(error)}（#{error.class.name}）"

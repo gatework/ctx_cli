@@ -3,6 +3,47 @@
 require "yaml"
 
 RSpec.describe "Host configuration" do
+  it "does not claim applicable configuration after a later layer fails" do
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "sample.yml"), "enabled: true\n")
+      broken = File.join(root, "broken.yml")
+      File.write(broken, "invalid: [")
+      files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: broken, env: {})
+      expect { files.load }.to raise_error(ArgumentError)
+      expect(files).to be_missing
+      expect(files.data).to eq({})
+      expect(files.config_files).to eq([])
+      File.write(broken, "enabled: false\n")
+      expect(files.load.data).to eq("enabled" => false)
+      expect(files).not_to be_missing
+    end
+  end
+
+  it "keeps field sources correct across scalar and mapping replacement" do
+    Dir.mktmpdir do |root|
+      first = File.join(root, "sample.yml")
+      last = File.join(root, "override.yml")
+      File.write(first, "a:\n  b: 1\nkeep: 2\nx: false\n")
+      File.write(last, "a: false\nx:\n  y: 3\n")
+      files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: last, env: {}).load
+      expect(files.data).to eq("a" => false, "keep" => 2, "x" => { "y" => 3 })
+      expect(files.sources.fetch("fields")).to eq("a" => last, "keep" => first, "x.y" => last)
+    end
+  end
+
+  it "rejects excessive nesting through a controlled input error" do
+    value = "leaf"
+    6_000.times { value = [ value ] }
+    expect { CtxCli::Configuration.copy(value) }.to raise_error(ArgumentError, /nesting/)
+  end
+
+  it "rejects excessive YAML nesting before recursive deserialization" do
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "sample.yml"), "value: " + "[" * 6_000 + "0" + "]" * 6_000)
+      expect { CtxCli::Configuration.new(name: "sample", directories: [ root ], env: {}).load }.to raise_error(ArgumentError, /nesting/)
+    end
+  end
+
   it "loads a standalone tool file without a shared namespace" do
     Dir.mktmpdir do |root|
       File.write(File.join(root, "sample.yml"), "enabled: false\n")

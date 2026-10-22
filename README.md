@@ -6,12 +6,13 @@
 
 | 对象 | 职责 |
 | --- | --- |
-| `Application` | 惰性子命令分发、全局帮助/版本、返回退出码 |
+| `Router` | 惰性子命令分发、全局帮助/版本、返回退出码 |
 | `Command` / `Options` | 每次独立的参数快照、信息分支、公共 OptionParser 分组 |
 | `Configuration` | 多层文件发现、隔离环境、来源路径、纯数据快照 |
-| `Initialization` | 私有文件排他创建、同步、保留已有配置 |
+| `Initializer` | 私有文件排他创建、同步、保留已有配置 |
 | `Terminal` | 真实终端检查、问答、隐藏密码、完整 token 确认 |
 | `Input` / `Output` | 文件/stdin、显式 JSON、仅含错误类型的诊断 |
+| `Review` | 离线来源读取、全量预检后发布、安全诊断与退出码映射 |
 | `Collection` | 配置、预览、全批预检、调度交付及退出码映射 |
 
 Ruby >= 3.4。`require "ctx_cli"` 或按能力加载 `ctx_cli/configuration` 等路径；加载不读取用户文件、不修改 ENV、不建立网络连接。核心不依赖 ctx_parser、ctx_runner 或 net-connector。代码和工程规范参照 ctx_parser，保留 Ruby 3.4 是为了兼容现有 backup 宿主。
@@ -56,7 +57,7 @@ files.sources     # 路径与字段来源，不包含环境值
 
 宿主把各层公共环境值转换成领域字段后，通过 `Configuration.merge(defaults, dotenv_values, yaml, process_values, cli)` 实现 CLI > 进程环境 > YAML > .env > 默认值。数组整层替换，false/nil 保留。相对路径按来源目录解释；支持 `path_literals:`（如 `system`）和 URI。`load` 重复调用不重新读文件。
 
-`Initialization#create(path:, contents:)` 返回 `:created` 或 `:exists`。文件先写完并同步，再排他发布并同步目录；既有普通文件保留，符号链接/目录拒绝。发布后同步失败仍抛错，不能当作成功；不把凭据自动写入模板。例子见 [examples/configuration.rb](examples/configuration.rb)。
+`Initializer#create(path:, contents:)` 返回 `:created` 或 `:exists`。文件先写完并同步，再排他发布并同步目录；既有普通文件保留，符号链接/目录拒绝。发布后同步失败仍抛错，不能当作成功；不把凭据自动写入模板。例子见 [examples/configuration.rb](examples/configuration.rb)。
 
 ## 采集协议
 
@@ -72,9 +73,22 @@ Options 协作者沿用现有入口协议：`informational?`、`validate_interac
 bundle install
 bundle exec rake
 bundle exec rake build
-ruby script/verify_package.rb pkg/ctx_cli-0.1.0.gem
+ruby script/verify_package.rb pkg/ctx_cli-0.2.0.gem
 ```
 
 默认任务包括 RSpec、RuboCop 和离线示例。安装验证在独立 GEM_HOME/GEM_PATH 下运行普通与最小 Bundler 应用，检查实际加载来源。CI 参照 ctx_parser 的固定 action 提交和候选制品校验；发布需另行明确授权。
 
 消费仓库可用 `CTX_CLI_PATH=../ctx_cli bundle exec rake` 显式联调；普通入口须先安装候选包。不隐式探测相邻目录。baseline 只在 Gemfile 中为现有 coverage 脚本引入开发依赖，没有新增 baseline 命令或核心依赖。
+
+Input reads default to a 16 MiB byte budget (`CtxCli::Input.read(max_bytes:)`). Configuration data is limited to 128 nesting levels and 100,000 nodes; oversized input raises `ArgumentError` before recursive deserialization.
+
+## 离线 review 入口
+
+`CtxCli::Review` 接收 `command:`（`CtxCli::Command`）、`directory:`（批次内证据目录名）和 `adapter:`。入口先处理帮助，再按文件名顺序读取 JSON，通过 `Input` 限制单个文件大小，最后依次调用：
+
+- `adapter.prepare(sources, options)`：验证全部领域记录、身份及策略并返回上下文，不创建输出。每条来源为 `[path, body, document]`；领域适配器可在本次入口拥有的来源数组中附加建议。
+- `adapter.publish(sources, options, batch:, context:)`：创建报告并返回完成提示。发布及持久性状态仍由领域模块和 Runner 管理。
+
+失败只输出异常类型，返回 2；中断返回 130；诊断流失败不覆盖原始退出码。帮助不加载证据或调用适配器。此类不读取凭据、连接设备或判断业务健康。默认单文件 16 MiB、批次原始正文总计 64 MiB、文件数 10000；宿主可通过 `max_bytes:`、`max_total_bytes:`、`max_files:` 调整。JSON 默认嵌套限制保持开启；上述限制不是进程 RSS 的精确上限。
+
+`Collection` 对普通参数/依赖异常只显示类型；宿主需要公开操作提示时使用 `CtxCli::Collection::Error`，其正文必须由宿主构造，不得直接包装外部异常正文、凭据或设备回显。该类型继承 ArgumentError，既有库调用方仍可按参数错误捕获。

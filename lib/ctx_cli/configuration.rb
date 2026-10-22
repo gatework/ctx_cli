@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 require "yaml"
+require_relative "input"
 
 module CtxCli
   # 宿主配置发现；加载文件不读取配置或建立设备连接。
   class Configuration
+    # 仅用于本类构造的公开配置诊断，不携带文件正文。
+    class Error < ArgumentError; end
+
+    MAX_DEPTH = 128
+    MAX_NODES = 100_000
     attr_reader :data, :specific, :process_environment, :file_environment, :environment,
                 :config_files, :environment_files, :sources
 
@@ -74,7 +80,7 @@ module CtxCli
       specific = {}
       fields = {}
       loaded = []
-      @applicable = false
+      applicable = false
       paths = @directories.flat_map { |directory| [ File.join(directory, "#{@namespace}.yml"), File.join(directory, "#{@name}.yml") ] }
       paths = final_candidates(paths, @selected_config)
       paths.each do |path|
@@ -82,13 +88,13 @@ module CtxCli
 
         document = read_yaml(path)
         if @namespace != @name && File.basename(path) == "#{@namespace}.yml"
-          common, native, applicable = shared_sections(document, path)
+          common, native, native_present = shared_sections(document, path)
           merged = merge_layer(merged, common, path, fields)
-          @applicable ||= applicable
+          applicable ||= native_present
         else
           native = document
           validate_string_keys!(native, path)
-          @applicable = true
+          applicable = true
         end
         merged = merge_layer(merged, native, path, fields)
         specific = self.class.merge(specific, resolve_paths(native, path))
@@ -98,6 +104,7 @@ module CtxCli
       @specific = self.class.freeze_tree(specific)
       @config_files = self.class.freeze_tree(loaded)
       update_sources(fields)
+      @applicable = applicable
       @loaded = true
       self
     end
@@ -132,27 +139,41 @@ module CtxCli
     alias_method :to_s, :inspect
     def pretty_print(printer) = printer.text(inspect)
 
-    # 递归合并但不修改来源；数组、false、nil 按值替换。
+    # 每层只复制一次，再合并拥有的映射；数组、false、nil 按值替换。
     def self.merge(*hashes)
       hashes.reduce({}) do |result, hash|
-        hash.each do |key, value|
-          result[copy(key)] = result[key].is_a?(Hash) && value.is_a?(Hash) ? merge(result[key], value) : copy(value)
+        raise ArgumentError, "configuration layers must be mappings" unless hash.is_a?(Hash)
+        pending = [ [ result, copy(hash) ] ]
+        until pending.empty?
+          target, source = pending.pop
+          source.each do |key, value|
+            if target[key].is_a?(Hash) && value.is_a?(Hash)
+              pending << [ target[key], value ]
+            else
+              target[key] = value
+            end
+          end
         end
         result
       end
     end
 
     # 只复制普通数据；循环或不透明对象不能进入快照并冻结调用方资源。
-    def self.copy(value, active = {}.compare_by_identity)
+    def self.copy(value) = copy_value(value, {}.compare_by_identity, 0, [ MAX_NODES ])
+
+    def self.copy_value(value, active, depth, budget)
+      raise ArgumentError, "configuration nesting exceeds budget" if depth > MAX_DEPTH
+      budget[0] -= 1
+      raise ArgumentError, "configuration node budget exceeded" if budget[0].negative?
       case value
       when Hash, Array
         raise ArgumentError, "cyclic configuration value" if active.key?(value)
         active[value] = true
         begin
           if value.is_a?(Hash)
-            value.to_h { |key, entry| [ copy(key, active), copy(entry, active) ] }
+            value.to_h { |key, entry| [ copy_value(key, active, depth + 1, budget), copy_value(entry, active, depth + 1, budget) ] }
           else
-            value.map { |entry| copy(entry, active) }
+            value.map { |entry| copy_value(entry, active, depth + 1, budget) }
           end
         ensure
           active.delete(value)
@@ -162,6 +183,7 @@ module CtxCli
       else raise ArgumentError, "configuration accepts plain data only"
       end
     end
+    private_class_method :copy_value
 
     def self.freeze_tree(value)
       case value
@@ -196,7 +218,7 @@ module CtxCli
 
     def readable_file?(path, explicit:, allow_missing:)
       unless File.exist?(path)
-        raise ArgumentError, "configuration file does not exist: #{path}" if explicit && !allow_missing
+        raise Error, "configuration file does not exist: #{path}" if explicit && !allow_missing
 
         return false
       end
@@ -206,7 +228,7 @@ module CtxCli
     end
 
     def read_yaml(path)
-      contents = File.read(path)
+      contents = Input.read(path: path)
       validate_yaml_structure!(contents, path)
       document = YAML.safe_load(contents, permitted_classes: [], permitted_symbols: [], aliases: false)
       document = {} if document.nil?
@@ -223,7 +245,14 @@ module CtxCli
       stream = YAML.parse_stream(contents)
       raise ArgumentError, "configuration must contain a single YAML document: #{path}" if stream.children.size > 1
 
-      stream.each do |node|
+      pending = [ [ stream, 0 ] ]
+      remaining = MAX_NODES
+      until pending.empty?
+        node, depth = pending.pop
+        raise ArgumentError, "configuration nesting exceeds budget" if depth > MAX_DEPTH
+        remaining -= 1
+        raise ArgumentError, "configuration node budget exceeded" if remaining.negative?
+        node.children&.reverse_each { |child| pending << [ child, depth + 1 ] }
         next unless node.is_a?(Psych::Nodes::Mapping)
 
         keys = {}
@@ -322,7 +351,11 @@ module CtxCli
           fields.delete(name)
           record_fields(value, source, fields, name, previous: before)
         else
-          fields.delete_if { |field, _| field == name || field.start_with?("#{name}.") }
+          # 只有旧映射被整体替换才需要删除后代；新增/覆盖叶子直接赋值。
+          if before.is_a?(Hash) && !before.empty?
+            descendant_prefix = "#{name}."
+            fields.delete_if { |field, _| field.start_with?(descendant_prefix) }
+          end
           fields[name] = source
         end
       end
@@ -365,7 +398,7 @@ module CtxCli
         end
         private :expand_newlines
       end
-      contents = File.read(path)
+      contents = Input.read(path: path)
       remainder = contents.gsub(Dotenv::Parser::LINE, "")
       unless remainder.lines("\n").all? { |line| line.strip.empty? || line.lstrip.start_with?("#") }
         raise ArgumentError, "invalid environment syntax"

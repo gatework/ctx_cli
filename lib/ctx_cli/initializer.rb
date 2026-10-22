@@ -5,7 +5,7 @@ require "tempfile"
 
 module CtxCli
   # 只发布已经过宿主校验的模板，不收集凭据、不覆盖已有目录项。
-  class Initialization
+  class Initializer
     def initialize(prefix: ".ctx-cli-init-")
       @prefix = prefix
     end
@@ -23,7 +23,7 @@ module CtxCli
     def create(path:, contents:)
       raise ArgumentError, "config path must be a nonempty String" unless path.is_a?(String) && !path.empty?
       return :exists if existing?(path)
-      FileUtils.mkdir_p(File.dirname(File.expand_path(path)), mode: 0o700)
+      prepare_directory(File.dirname(File.expand_path(path)))
       directory = File.realpath(File.dirname(File.expand_path(path)))
       destination = File.join(directory, File.basename(path))
       file = parent = primary = nil
@@ -52,6 +52,19 @@ module CtxCli
     end
 
     private
+
+    # 先确认新目录在各父级的名字已同步，再发布其中的配置文件。
+    def prepare_directory(path)
+      missing, parent = [], path
+      until File.directory?(parent)
+        missing << parent
+        parent = File.dirname(parent)
+      end
+      FileUtils.mkdir_p(path, mode: 0o700)
+      missing.reverse_each do |created|
+        File.open(File.realpath(File.dirname(created)), File::RDONLY | File::NOFOLLOW) { |directory| directory.fsync }
+      end
+    end
 
     # 全部句柄都尝试关闭，保留原始故障；不把清理失败变为成功。
     def close_files(file, parent, primary)

@@ -1,9 +1,17 @@
 # frozen_string_literal: true
 
 RSpec.describe "Command boundaries" do
+  it "protects caller arguments from a mutating command handler" do
+    argv = [ +"read", +"original" ]
+    app = CtxCli::Router.new(name: "sample", version: "1", usage: "usage",
+      commands: { "read" => ->(args) { args.first.replace("changed"); 0 } })
+    expect(app.run(argv)).to eq(0)
+    expect(argv).to eq([ "read", "original" ])
+  end
+
   it "dispatches only the chosen command and rejects arguments after global help" do
     output, errors, calls = StringIO.new, StringIO.new, []
-    app = CtxCli::Application.new(name: "sample", version: "1.2", usage: "usage", out: output, error: errors,
+    app = CtxCli::Router.new(name: "sample", version: "1.2", usage: "usage", out: output, error: errors,
       commands: { "read" => ->(args) { calls << args; 7 } })
     expect(app.run([ "--help" ])).to eq(0)
     expect(app.run([ "--version" ])).to eq(0)

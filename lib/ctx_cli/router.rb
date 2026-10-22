@@ -2,7 +2,7 @@
 
 module CtxCli
   # 命令工厂按需执行；帮助和版本不加载领域实现或配置。
-  class Application
+  class Router
     def initialize(name:, version:, usage:, commands:, out: $stdout, error: $stderr)
       @name, @version, @usage, @commands = name, version, usage, commands.dup.freeze
       @out, @error = out, error
@@ -10,7 +10,7 @@ module CtxCli
 
     # 退出行为归调用方；保留 argv 并只返回命令退出码。
     def run(argv)
-      arguments = argv.dup
+      arguments = argv.map { |argument| String.new(argument) }
       command = arguments.shift
       if [ nil, "--help", "--help-all", "-h" ].include?(command) && arguments.empty?
         @out.puts @usage
