@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
+require "bundler/setup"
 require "rubygems/package"
 require "tmpdir"
 require "rbconfig"
 require "fileutils"
-require "bundler/setup"
 require "bundler"
 
 artifact = File.expand_path(ARGV.fetch(0))
