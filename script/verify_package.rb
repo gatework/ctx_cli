@@ -4,6 +4,7 @@ require "rubygems/package"
 require "tmpdir"
 require "rbconfig"
 require "fileutils"
+require "bundler/setup"
 require "bundler"
 
 artifact = File.expand_path(ARGV.fetch(0))
@@ -13,7 +14,7 @@ spec = package.spec
 abort "Unexpected package" unless spec.name == "ctx_cli"
 abort "Unexpected package contents" if spec.files.any? { |path| path.start_with?("spec/", "test/", "storage/", "tmp/") || path.end_with?(".log", ".gem") }
 
-# 只使用运行时依赖闭包的缓存，最小消费者不能借用开发 Gemfile。
+# 父进程从开发 Bundle 定位依赖缓存；子进程只使用运行时闭包，不能借用开发 Gemfile。
 dependencies, pending = {}, spec.runtime_dependencies.dup
 until pending.empty?
   dependency = pending.shift
