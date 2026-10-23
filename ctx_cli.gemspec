@@ -22,6 +22,6 @@ Gem::Specification.new do |spec|
   # 显式限定打包内容，设备数据、凭据和验证产物不进入 gem。
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*.rb", "examples/**/*.rb", "docs/**/*.md", "README*.md", "CHANGELOG.md", "LICENSE"].sort }
   spec.require_paths = [ "lib" ]
-  spec.add_dependency "dotenv", ">= 3.0", "< 4"
+  spec.add_dependency "dotenv"
   %w[fileutils io-console json optparse tempfile yaml].each { |name| spec.add_dependency name }
 end

@@ -33,13 +33,13 @@ module CtxCli
       return 0 if @options.missing?(input: @input, error: @error)
       @options.load
       @progress = @progress_factory.call(@options)
-      @progress.notice("配置：#{@options.config}")
+      @progress.notice("Configuration: #{@options.config}")
       return output(@options.public_values.merge("sources" => @options.sources)) if @options.flags[:show_config]
       @devices, @inventory_total = @adapter.inventory(@options, progress: @progress)
       devices = @devices
       return output(devices) if @options.flags[:inventory_only]
       if devices.empty?
-        @progress.notice("没有匹配设备，未建立连接")
+        @progress.notice("No devices matched; no connections opened")
         @output.json({ status: :no_devices, total: 0 }, pretty: false) if @options.flags[:json]
         return 1
       end
@@ -47,7 +47,7 @@ module CtxCli
       @store = @adapter.report(@options)
       @batch = @batch_class.new(report: @store, progress: @progress, requested: devices)
       outcome = @batch.run(present: ->(summary) { @output.json(summary) if @options.flags[:json] }) do
-        @progress.plan(devices: devices, total: @inventory_total, parallel: @options.values.fetch("parallel"), label: "#{@label} 只读采集")
+        @progress.plan(devices: devices, total: @inventory_total, parallel: @options.values.fetch("parallel"), label: "#{@label} read-only collection")
         @progress.with_updates do
           @adapter.execute(devices, @options) do |device|
             @batch.collect(device) { @adapter.collect(device, @options, context: context, progress: @progress) }
@@ -57,19 +57,19 @@ module CtxCli
       end
       completion(outcome)
     rescue Interrupt
-      diagnostic "采集已取消，已保存的设备报告保留；未保存结果见报告状态"
+      diagnostic "Collection cancelled; saved device reports retained; check report status for unsaved results"
       130
     rescue SystemCallError, IOError => error
-      diagnostic "#{@label} 参数或报告错误：#{report_diagnostic(error)}"
+      diagnostic "#{@label} argument or report error: #{report_diagnostic(error)}"
       2
     rescue Error, Configuration::Error => error
-      diagnostic "#{@label} 参数、依赖或报告错误：#{error.message}；使用 --help 查看参数"
+      diagnostic "#{@label} argument, dependency or report error: #{error.message}; use --help for options"
       2
     rescue OptionParser::ParseError, ArgumentError, LoadError => error
-      diagnostic "#{@label} 参数、依赖或报告错误：#{error.class.name}；使用 --help 查看参数"
+      diagnostic "#{@label} argument, dependency or report error: #{error.class.name}; use --help for options"
       2
     rescue StandardError => error
-      diagnostic "#{@label} 清单或执行失败：#{@failure_code.call(error)}（#{error.class.name}）"
+      diagnostic "#{@label} inventory or execution failed: #{@failure_code.call(error)} (#{error.class.name})"
       2
     end
 
@@ -82,18 +82,18 @@ module CtxCli
     # Runner 决定批次结论；CLI 仅呈现安全诊断并映射退出码。
     def completion(outcome)
       if outcome.finalization_error
-        diagnostic "#{@label} 摘要报告错误：#{outcome.finalization_error}"
+        diagnostic "#{@label} summary report error: #{outcome.finalization_error}"
       end
       if outcome.recovery_failed
-        diagnostic "摘要恢复未确认；请依据退出码及报告目录检查，不能将旧摘要视为本次成功。"
+        diagnostic "Summary recovery is unconfirmed; check the exit code and report directory. An earlier summary does not confirm this run succeeded."
       end
       if outcome.status == :interrupted
-        diagnostic "采集已取消，已保存的设备报告保留；未保存结果见报告状态"
+        diagnostic "Collection cancelled; saved device reports retained; check report status for unsaved results"
       elsif (failure = outcome.failure)
         if failure[:kind] == :report
-          diagnostic "#{@label} 参数或报告错误：#{failure[:detail]}"
+          diagnostic "#{@label} argument or report error: #{failure[:detail]}"
         else
-          diagnostic "#{@label} 清单或执行失败：#{failure[:error_type]}；已采集结果见批次报告"
+          diagnostic "#{@label} inventory or execution failed: #{failure[:error_type]}; see the batch report for collected results"
         end
       end
       { complete: 0, incomplete: 1, failed: 2, interrupted: 130 }.fetch(outcome.status)
@@ -115,7 +115,7 @@ module CtxCli
         @output.json(value)
       else
         value.each { |device| @out.puts "#{device.fetch('host')}\t#{device.fetch('name')}\t#{device['model']}" }
-        @out.puts "设备：#{value.size} 台；未建立设备连接"
+        @out.puts "Devices: #{value.size}; no device connections opened"
       end
       value.is_a?(Array) && value.empty? ? 1 : 0
     end

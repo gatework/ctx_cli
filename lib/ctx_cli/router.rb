@@ -21,7 +21,7 @@ module CtxCli
         return 0
       end
       return @commands.fetch(command).call(arguments) if @commands.key?(command)
-      @error.puts "未知命令或多余参数；使用 #{@name} --help 查看用法"
+      @error.puts "Unknown command or extra arguments; use #{@name} --help for usage"
       2
     end
   end

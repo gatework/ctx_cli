@@ -18,7 +18,7 @@ module CtxCli
       @parser.banner = @banner
       @configure&.call(@parser, @values)
       rest = @parser.parse(argv.dup)
-      raise ArgumentError, "不接受位置参数" unless rest.empty?
+      raise ArgumentError, "Positional arguments are not accepted" unless rest.empty?
       @values
     end
 

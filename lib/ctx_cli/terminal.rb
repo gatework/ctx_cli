@@ -10,7 +10,7 @@ module CtxCli
     def self.tty?(*streams) = streams.all? { |stream| stream.respond_to?(:tty?) && stream.tty? }
     def tty?(*others) = self.class.tty?(@input, @out, *others)
 
-    def require_tty!(*others, message: "必须使用真实交互终端")
+    def require_tty!(*others, message: "An interactive terminal is required")
       raise ArgumentError, message unless tty?(*others)
     end
 
@@ -26,13 +26,13 @@ module CtxCli
     end
 
     def password(label:)
-      raise ArgumentError, "密码提示需要交互终端；自动化任务可使用环境变量或 --stdin-credentials" unless self.class.tty?(@input)
+      raise ArgumentError, "Password prompts require an interactive terminal; use environment variables or --stdin-credentials for automation" unless self.class.tty?(@input)
       require "io/console"
-      @out.print "#{label}："
+      @out.print "#{label}: "
       @out.flush
       value = @input.noecho { |terminal| terminal.gets("\n") }&.chomp("\n")
       @out.puts
-      raise ArgumentError, "密码不能为空" if value.nil? || value.empty?
+      raise ArgumentError, "Password must not be empty" if value.nil? || value.empty?
       value
     end
   end

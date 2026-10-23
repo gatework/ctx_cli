@@ -73,7 +73,7 @@ Options 协作者沿用现有入口协议：`informational?`、`validate_interac
 bundle install
 bundle exec rake
 bundle exec rake build
-ruby script/verify_package.rb pkg/ctx_cli-0.2.0.gem
+ruby script/verify_package.rb pkg/ctx_cli-0.2.1.gem
 ```
 
 默认任务包括 RSpec、RuboCop 和离线示例。安装验证在独立 GEM_HOME/GEM_PATH 下运行普通与最小 Bundler 应用，检查实际加载来源。CI 参照 ctx_parser 的固定 action 提交和候选制品校验；发布需另行明确授权。

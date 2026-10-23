@@ -23,10 +23,10 @@ module CtxCli
     def run(argv)
       options = @command.parse(argv)
       return 0 if @command.informational?
-      raise ArgumentError, "需要批次目录" unless options[:batch]
+      raise ArgumentError, "A batch directory is required" unless options[:batch]
       batch = File.expand_path(options[:batch])
       paths = source_paths(File.join(batch, @directory))
-      raise ArgumentError, "无设备报告" if paths.empty?
+      raise ArgumentError, "No device reports found" if paths.empty?
       remaining = @max_total_bytes
       sources = paths.map do |path|
         raise ArgumentError, "review byte budget exceeded" unless remaining.positive?
@@ -38,10 +38,10 @@ module CtxCli
       @output.text(@adapter.publish(sources, options, batch: batch, context: context))
       0
     rescue Interrupt
-      @output.diagnostic("建议生成已取消；已有报告保留，未执行设备变更。")
+      @output.diagnostic("Review cancelled; existing reports retained; no device changes executed.")
       130
     rescue StandardError => error
-      @output.diagnostic("建议生成失败（#{error.class.name}）；请检查输入结构、目录权限和 --help；未执行设备变更。")
+      @output.diagnostic("Review failed (#{error.class.name}); check the input structure, directory permissions and --help; no device changes executed.")
       2
     end
 

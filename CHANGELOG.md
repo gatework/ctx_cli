@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.1 (2026-10-23)
+
+- Use English command help, prompts and collection/review diagnostics.
+- Allow compatible dotenv versions without an upper version bound.
+
 ## 0.2.0 (2026-10-23)
 
 - Rename Initialization to Initializer and Application to Router; remove the old constants and require paths in the 0.2.0 candidate.

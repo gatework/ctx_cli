@@ -14,7 +14,7 @@ module CtxCli
 
     # 最后的错误流失败不能覆盖原本的失败或取消状态。
     def diagnostic(message, exception: nil)
-      @error.puts(exception ? "#{message}（#{exception.class.name}）" : message)
+      @error.puts(exception ? "#{message} (#{exception.class.name})" : message)
     rescue StandardError
       nil
     end
