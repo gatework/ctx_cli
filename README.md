@@ -53,6 +53,8 @@ files.environment # .env 加原进程环境；不修改 ENV
 files.sources     # 路径与字段来源，不包含环境值
 ```
 
+`sources["fields"]` 使用 JSON Pointer 作为字段键，例如 `/parallel`、`/ssh/known_hosts`。字面键 `a.b` 对应 `/a.b`，嵌套 `a → b` 对应 `/a/b`；键内 `/` 编为 `~1`、`~` 编为 `~0`。数组作为整体字段记录来源。宿主的 `path_fields` 声明语法不变，来源索引不保留点分键别名。
+
 默认依次搜索 `/etc/<namespace>`、`/usr/local/etc/<namespace>`、`$XDG_CONFIG_HOME/<namespace>`（否则 `~/.config/<namespace>`）、入口目录和启动目录。每层读取 `<namespace>.yml` 与 `<name>.yml`，显式文件最后。共享文件按 `common` 和工具名称分区；name 与 namespace 相同时使用普通独立文件。`directories:` 可以完整替换搜索范围。
 
 宿主把各层公共环境值转换成领域字段后，通过 `Configuration.merge(defaults, dotenv_values, yaml, process_values, cli)` 实现 CLI > 进程环境 > YAML > .env > 默认值。数组整层替换，false/nil 保留。相对路径按来源目录解释；支持 `path_literals:`（如 `system`）和 URI。`load` 重复调用不重新读文件。
@@ -73,7 +75,7 @@ Options 协作者沿用现有入口协议：`informational?`、`validate_interac
 bundle install
 bundle exec rake
 bundle exec rake build
-ruby script/verify_package.rb pkg/ctx_cli-0.2.1.gem
+ruby script/verify_package.rb pkg/ctx_cli-0.3.0.gem
 ```
 
 默认任务包括 RSpec、RuboCop 和离线示例。安装验证在独立 GEM_HOME/GEM_PATH 下运行普通与最小 Bundler 应用，检查实际加载来源。CI 参照 ctx_parser 的固定 action 提交和候选制品校验；发布需另行明确授权。

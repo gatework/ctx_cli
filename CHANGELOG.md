@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.0 (2026-10-24)
+
+- Use JSON Pointer keys in configuration field provenance, separating literal dots, slashes, tildes, empty keys and nested mappings.
+- Remove only actual descendant sources when a mapping is replaced; preserve array replacement and empty-mapping merge behavior.
+- Breaking change: sources.fields and host --show-config output no longer expose dotted-path aliases; migrate field lookups to JSON Pointer.
+
 ## 0.2.1 (2026-10-23)
 
 - Use English command help, prompts and collection/review diagnostics.

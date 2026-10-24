@@ -341,9 +341,10 @@ module CtxCli
       self.class.merge(previous, resolved)
     end
 
-    def record_fields(document, source, fields, prefix = nil, previous: {})
+    # 用 JSON Pointer 区分字面键与层级，只移除被替换映射的真正后代来源。
+    def record_fields(document, source, fields, prefix = "", previous: {})
       document.each do |key, value|
-        name = [ prefix, key ].compact.join(".")
+        name = "#{prefix}/#{key.gsub("~", "~0").gsub("/", "~1")}"
         before = previous.is_a?(Hash) ? previous[key] : nil
         next if value.is_a?(Hash) && value.empty? && before.is_a?(Hash) && !before.empty?
 
@@ -353,7 +354,7 @@ module CtxCli
         else
           # 只有旧映射被整体替换才需要删除后代；新增/覆盖叶子直接赋值。
           if before.is_a?(Hash) && !before.empty?
-            descendant_prefix = "#{name}."
+            descendant_prefix = "#{name}/"
             fields.delete_if { |field, _| field.start_with?(descendant_prefix) }
           end
           fields[name] = source

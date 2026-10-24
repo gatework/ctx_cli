@@ -27,7 +27,48 @@ RSpec.describe "Host configuration" do
       File.write(last, "a: false\nx:\n  y: 3\n")
       files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: last, env: {}).load
       expect(files.data).to eq("a" => false, "keep" => 2, "x" => { "y" => 3 })
-      expect(files.sources.fetch("fields")).to eq("a" => last, "keep" => first, "x.y" => last)
+      expect(files.sources.fetch("fields")).to eq("/a" => last, "/keep" => first, "/x/y" => last)
+    end
+  end
+
+  it "tracks literal dotted and slashed keys separately from nested fields" do
+    Dir.mktmpdir do |root|
+      first = File.join(root, "sample.yml")
+      last = File.join(root, "override.yml")
+      File.write(first, { "a.b" => "literal", "a" => { "b" => "nested" }, "a/b" => "slash" }.to_yaml)
+      File.write(last, { "a.b" => "changed" }.to_yaml)
+      files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: last, env: {}).load
+      expect(files.data).to eq("a.b" => "changed", "a" => { "b" => "nested" }, "a/b" => "slash")
+      expect(files.sources.fetch("fields")).to eq("/a.b" => last, "/a/b" => first, "/a~1b" => first)
+    end
+  end
+
+  it "removes only actual descendant sources when a mapping becomes a scalar" do
+    Dir.mktmpdir do |root|
+      first = File.join(root, "sample.yml")
+      last = File.join(root, "override.yml")
+      File.write(first, { "a" => { "b" => 1 }, "a.b" => 2, "a/b" => 3, "ab" => 4 }.to_yaml)
+      File.write(last, { "a" => false }.to_yaml)
+      files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: last, env: {}).load
+      expect(files.data).to eq("a" => false, "a.b" => 2, "a/b" => 3, "ab" => 4)
+      expect(files.sources.fetch("fields")).to eq("/a" => last, "/a.b" => first, "/a~1b" => first, "/ab" => first)
+    end
+  end
+
+  it "preserves escaped empty and Unicode key identities through value replacement" do
+    Dir.mktmpdir do |root|
+      first = File.join(root, "sample.yml")
+      last = File.join(root, "override.yml")
+      File.write(first, { "" => { "~1" => "SYNTHETIC-SECRET" }, "~1" => { "/" => 1 },
+        "é" => true, "e\u0301" => false, "items" => [ { "x" => 1 } ], "empty" => {}, "branch" => { "leaf" => 0 } }.to_yaml)
+      File.write(last, { "" => { "~1" => nil }, "items" => [], "empty" => { "leaf" => false }, "branch" => {} }.to_yaml)
+      files = CtxCli::Configuration.new(name: "sample", directories: [ root ], config: last, env: {}).load
+      expect(files.data).to include("" => { "~1" => nil }, "items" => [], "empty" => { "leaf" => false }, "branch" => { "leaf" => 0 })
+      expect(files.sources.fetch("fields")).to eq("//~01" => last, "/~01/~1" => first, "/é" => first, "/e\u0301" => first,
+        "/items" => last, "/empty/leaf" => last, "/branch/leaf" => first)
+      expect(files.sources.fetch("fields")).to be_frozen
+      expect(files.sources.fetch("fields").keys).to all(be_frozen)
+      expect(files.sources.to_s).not_to include("SYNTHETIC-SECRET")
     end
   end
 
@@ -66,7 +107,7 @@ RSpec.describe "Host configuration" do
       files = configuration(root).load
       expect(files.data).to eq("ssh" => { "known_hosts" => File.join(root, "keys") }, "devices" => [],
         "enabled" => false, "optional" => nil, "directory" => File.join(root, "reports"))
-      expect(files.sources.fetch("fields").fetch("ssh.known_hosts")).to eq(File.join(root, "suite.yml"))
+      expect(files.sources.fetch("fields").fetch("/ssh/known_hosts")).to eq(File.join(root, "suite.yml"))
       expect(files.data.fetch("devices")).to be_frozen
     end
   end

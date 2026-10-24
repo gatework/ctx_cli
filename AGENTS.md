@@ -24,6 +24,6 @@
 
 ## 验证
 
-`bundle exec rake` 执行 RSpec、lint 和离线 examples；`bundle exec rake build` 构建；`ruby script/verify_package.rb pkg/ctx_cli-0.2.1.gem` 验证普通与 Bundler 最小安装。
+`bundle exec rake` 执行 RSpec、lint 和离线 examples；`bundle exec rake build` 构建；`ruby script/verify_package.rb pkg/ctx_cli-0.3.0.gem` 验证普通与 Bundler 最小安装。
 
 消费仓库通过显式 `CTX_CLI_PATH=../ctx_cli` 联调，普通入口使用安装包；两种验证分别记录。测试优先复用消费端配置、取消、持久化故障及 PTY 用例。工作流参照 ctx_parser，Ruby 3.4/4.0.6 和 Linux/macOS；本地未运行的矩阵不得称为通过。

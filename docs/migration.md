@@ -17,4 +17,10 @@ ctx_cli 初始版本为 0.1.0。首次发布依赖顺序先 ctx_cli，再 net-co
 - `CtxCli::Initialization` / `ctx_cli/initialization` 改为 `CtxCli::Initializer` / `ctx_cli/initializer`，仅负责模板安全发布。
 - `CtxCli::Application` / `ctx_cli/application` 改为 `CtxCli::Router` / `ctx_cli/router`，仅负责全局信息和子命令分发。
 
-旧常量和 require 路径不保留别名。宿主需同步修改引用，并将 ctx_cli 依赖更新为 `~> 0.2.0`。`create`、`existing?`、`run` 的结果约定不变；初始化参数询问和厂商语义不迁入这两个对象。0.2.0 当前为本地候选，尚未发布。
+旧常量和 require 路径不保留别名。宿主需同步修改引用，并在应用锁文件中选择包含新接口的 ctx_cli 版本。`create`、`existing?`、`run` 的结果约定不变；初始化参数询问和厂商语义不迁入这两个对象。这些名称从 0.2.0 起使用。
+
+## 0.3.0 配置来源字段
+
+`Configuration#sources["fields"]` 的键统一使用 [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901)：`parallel` 改为 `/parallel`，`ssh.port` 的嵌套路径改为 `/ssh/port`。字面键 `ssh.port` 则为 `/ssh.port`，两者拥有独立来源。空键为 `/`；每段中的 `~` 编为 `~0`，`/` 编为 `~1`，不作 Unicode 归一化。
+
+来源值仍是 YAML 文件路径；数组整体替换，来源记在数组字段上。空映射合并不覆盖既有非空映射的来源。宿主透传的 `--show-config` 同步采用此结构；外部来源索引调用方须迁移键查找，不提供点分键回退或格式开关。`path_fields` 仍是宿主声明哪些字段要解析为文件路径的独立语法。
