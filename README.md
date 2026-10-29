@@ -75,7 +75,7 @@ Options 协作者沿用现有入口协议：`informational?`、`validate_interac
 bundle install
 bundle exec rake
 bundle exec rake build
-ruby script/verify_package.rb pkg/ctx_cli-0.3.0.gem
+ruby script/verify_package.rb pkg/ctx_cli-0.4.0.gem
 ```
 
 默认任务包括 RSpec、RuboCop 和离线示例。安装验证在独立 GEM_HOME/GEM_PATH 下运行普通与最小 Bundler 应用，检查实际加载来源。CI 参照 ctx_parser 的固定 action 提交和候选制品校验；发布需另行明确授权。
@@ -94,3 +94,5 @@ Input reads default to a 16 MiB byte budget (`CtxCli::Input.read(max_bytes:)`). 
 失败只输出异常类型，返回 2；中断返回 130；诊断流失败不覆盖原始退出码。帮助不加载证据或调用适配器。此类不读取凭据、连接设备或判断业务健康。默认单文件 16 MiB、批次原始正文总计 64 MiB、文件数 10000；宿主可通过 `max_bytes:`、`max_total_bytes:`、`max_files:` 调整。JSON 默认嵌套限制保持开启；上述限制不是进程 RSS 的精确上限。
 
 `Collection` 对普通参数/依赖异常只显示类型；宿主需要公开操作提示时使用 `CtxCli::Collection::Error`，其正文必须由宿主构造，不得直接包装外部异常正文、凭据或设备回显。该类型继承 ArgumentError，既有库调用方仍可按参数错误捕获。
+
+`CtxCli::Apply` 负责版本计划的校验和、`--item` 选择、终端确认及退出码；通过 `adapter:` 和 `execution:` 注入领域校验、凭据、会话、日志及执行器。ctx_cli 不依赖 ctx_runner 或连接器。

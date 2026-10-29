@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.0 (2026-10-29)
+
+- Add an injected Apply entry point for checksummed plans, explicit item selection, interactive confirmation and safe failure reporting, without domain, runner or connector dependencies.
+
 ## 0.3.0 (2026-10-24)
 
 - Use JSON Pointer keys in configuration field provenance, separating literal dots, slashes, tildes, empty keys and nested mappings.

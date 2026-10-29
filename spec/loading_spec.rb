@@ -12,7 +12,9 @@ RSpec.describe "Independent entrypoint loading" do
         abort "Unexpected host dependency" if defined?(Rails) || defined?(CtxRunner) || defined?(CtxParser) || defined?(Net::Connector)
         abort "Modified environment" unless ENV["AUDIT_CONFIG"] == "/missing/never-read.yml"
       RUBY
-      output, error, status = Open3.capture3({ "AUDIT_CONFIG" => "/missing/never-read.yml" }, RbConfig.ruby, "-Ilib", "-e", script)
+      output, error, status = Bundler.with_unbundled_env do
+        Open3.capture3({ "AUDIT_CONFIG" => "/missing/never-read.yml" }, RbConfig.ruby, "-Ilib", "-e", script)
+      end
       expect(status).to be_success, "#{path}: #{error}"
       expect(output).to eq("")
     end

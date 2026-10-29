@@ -23,5 +23,5 @@ Gem::Specification.new do |spec|
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*.rb", "examples/**/*.rb", "docs/**/*.md", "README*.md", "CHANGELOG.md", "LICENSE"].sort }
   spec.require_paths = [ "lib" ]
   spec.add_dependency "dotenv"
-  %w[fileutils io-console json optparse tempfile yaml].each { |name| spec.add_dependency name }
+  %w[digest fileutils io-console json optparse tempfile yaml].each { |name| spec.add_dependency name }
 end

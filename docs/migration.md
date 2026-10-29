@@ -24,3 +24,7 @@ ctx_cli 初始版本为 0.1.0。首次发布依赖顺序先 ctx_cli，再 net-co
 `Configuration#sources["fields"]` 的键统一使用 [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901)：`parallel` 改为 `/parallel`，`ssh.port` 的嵌套路径改为 `/ssh/port`。字面键 `ssh.port` 则为 `/ssh.port`，两者拥有独立来源。空键为 `/`；每段中的 `~` 编为 `~0`，`/` 编为 `~1`，不作 Unicode 归一化。
 
 来源值仍是 YAML 文件路径；数组整体替换，来源记在数组字段上。空映射合并不覆盖既有非空映射的来源。宿主透传的 `--show-config` 同步采用此结构；外部来源索引调用方须迁移键查找，不提供点分键回退或格式开关。`path_fields` 仍是宿主声明哪些字段要解析为文件路径的独立语法。
+
+## 0.4.0 Apply
+
+VXLAN/Wireless 的交互执行入口组合 `CtxCli::Apply`；宿主注入 adapter 和 execution 协作者，领域命令和会话仍由宿主维护。统一要求具名 `--item`、plan.json.sha256 和绑定设备/摘要/所选项的终端确认，取消为 1、预检或执行失败为 2、中断为 130。ctx_cli 自身不加载 Runner 或连接器。
