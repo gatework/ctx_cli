@@ -96,3 +96,7 @@ Input reads default to a 16 MiB byte budget (`CtxCli::Input.read(max_bytes:)`). 
 `Collection` 对普通参数/依赖异常只显示类型；宿主需要公开操作提示时使用 `CtxCli::Collection::Error`，其正文必须由宿主构造，不得直接包装外部异常正文、凭据或设备回显。该类型继承 ArgumentError，既有库调用方仍可按参数错误捕获。
 
 `CtxCli::Apply` 负责版本计划的校验和、`--item` 选择、终端确认及退出码；通过 `adapter:` 和 `execution:` 注入领域校验、凭据、会话、日志及执行器。ctx_cli 不依赖 ctx_runner 或连接器。
+
+## Domain contract migration (2026-10-30)
+
+Use `target` in controlled apply documents and accept JSON nesting up to the shared 128-level evidence budget. Host adapters must use schema 4 plans. See the [schema 4 migration and module contracts](https://github.com/gatework/ctx_runner/blob/main/docs/contracts-2026-10-30.md). Regenerate old collection reports and change plans; changing only their version number is not supported.

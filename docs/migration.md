@@ -28,3 +28,7 @@ ctx_cli 初始版本为 0.1.0。首次发布依赖顺序先 ctx_cli，再 net-co
 ## 0.4.0 Apply
 
 VXLAN/Wireless 的交互执行入口组合 `CtxCli::Apply`；宿主注入 adapter 和 execution 协作者，领域命令和会话仍由宿主维护。统一要求具名 `--item`、plan.json.sha256 和绑定设备/摘要/所选项的终端确认，取消为 1、预检或执行失败为 2、中断为 130。ctx_cli 自身不加载 Runner 或连接器。
+
+## 0.5.0 目标身份
+
+受控执行读取 `plan["target"]`，旧 `device` 字段不再识别。领域宿主须升级 schema 4、重新生成计划；CLI 只负责输入边界，平台与身份验证仍由 Runner/领域负责。JSON 读取的最大嵌套为 128，与公共证据深度预算一致。

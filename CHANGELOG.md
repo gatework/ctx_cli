@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.0 (2026-10-30)
+
+- Use `target` in controlled apply documents and accept JSON nesting up to the shared 128-level evidence budget. Host adapters must use schema 4 plans.
+
 ## 0.4.0 (2026-10-29)
 
 - Add an injected Apply entry point for checksummed plans, explicit item selection, interactive confirmation and safe failure reporting, without domain, runner or connector dependencies.

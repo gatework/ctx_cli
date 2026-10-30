@@ -34,11 +34,11 @@ module CtxCli
       end
       # 外部领域回调不能改变刚验证的计划、选择或连接参数。
       values = Configuration.freeze_tree(Configuration.copy(values))
-      document = Configuration.freeze_tree(Configuration.copy(JSON.parse(body)))
+      document = Configuration.freeze_tree(Configuration.copy(JSON.parse(body, max_nesting: 128)))
       plan = Configuration.freeze_tree(Configuration.copy(@adapter.select_plan(document, item: values[:item])))
       change = @adapter.validate_plan(plan)
-      host = plan.fetch("device").fetch("host")
-      @out.puts "Target: #{plan['device']['name']}(#{host}); #{plan['scope']}; #{plan['title']}"
+      host = plan.fetch("target").fetch("host")
+      @out.puts "Target: #{plan['target']['name']}(#{host}); #{plan['scope']}; #{plan['title']}"
       @out.puts "Impact: #{plan['impact']}"
       @out.puts Array(plan["prerequisites"]).map { |value| "Prerequisite: #{value}" }
       @out.puts "Plan SHA256: #{sha256}\nProposed commands:\n#{change.commands.join("\n")}\nConditional rollback (not executed automatically):\n#{change.rollback.join("\n")}"
@@ -50,7 +50,7 @@ module CtxCli
       settings = @adapter.credentials(values)
       journal = @adapter.report(values)
       @execution = @execution_class.new(plan: plan, change: change, journal: journal, plan_sha256: sha256, item: values[:item])
-      @execution.run { |operation| @adapter.with_session(plan.fetch("device"), settings, &operation) }
+      @execution.run { |operation| @adapter.with_session(plan.fetch("target"), settings, &operation) }
       @out.puts "Configuration readback confirmed; service acceptance is still required. Configuration was not saved to startup configuration. Log: #{journal.directory}/execution.json"
       0
     rescue Interrupt

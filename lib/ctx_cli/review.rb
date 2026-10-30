@@ -32,7 +32,7 @@ module CtxCli
         raise ArgumentError, "review byte budget exceeded" unless remaining.positive?
         body = Input.read(path: path, max_bytes: [ @max_bytes, remaining ].min)
         remaining -= body.bytesize
-        [ path, body, JSON.parse(body) ]
+        [ path, body, JSON.parse(body, max_nesting: 128) ]
       end
       context = @adapter.prepare(sources, options)
       @output.text(@adapter.publish(sources, options, batch: batch, context: context))
